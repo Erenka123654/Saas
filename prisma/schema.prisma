@@ -1,0 +1,78 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+enum TransactionType {
+  GELIR
+  GIDER
+}
+
+model User {
+  id           String       @id @default(cuid())
+  name         String
+  email        String       @unique
+  passwordHash String
+  createdAt    DateTime     @default(now())
+  memberships  Membership[]
+  transactions Transaction[] @relation("CreatedBy")
+}
+
+model Organization {
+  id           String        @id @default(cuid())
+  name         String
+  createdAt    DateTime      @default(now())
+  memberships  Membership[]
+  categories   Category[]
+  transactions Transaction[]
+}
+
+model Membership {
+  id             String       @id @default(cuid())
+  role           Role         @default(MEMBER)
+  createdAt      DateTime     @default(now())
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId         String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organizationId String
+
+  @@unique([userId, organizationId])
+}
+
+model Category {
+  id             String          @id @default(cuid())
+  name           String
+  type           TransactionType
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organizationId String
+  transactions   Transaction[]
+
+  @@unique([organizationId, name, type])
+}
+
+model Transaction {
+  id             String          @id @default(cuid())
+  type           TransactionType
+  amount         Decimal         @db.Decimal(14, 2)
+  description    String
+  date           DateTime
+  createdAt      DateTime        @default(now())
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organizationId String
+  category       Category        @relation(fields: [categoryId], references: [id])
+  categoryId     String
+  createdBy      User            @relation("CreatedBy", fields: [createdById], references: [id])
+  createdById    String
+
+  @@index([organizationId, date])
+}
